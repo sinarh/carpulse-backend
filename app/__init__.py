@@ -17,11 +17,15 @@ def create_app():
     from .routes.vehicles import vehicles_bp
     from .routes.vehicle_logs import vehicle_logs_bp
     from .routes.ai import ai_bp
+    from .routes.health_snapshots import health_snapshots_bp
+    from .routes.maintenance_records import maintenance_records_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(health_bp, url_prefix="/health")
     app.register_blueprint(vehicles_bp, url_prefix="/vehicle")
     app.register_blueprint(vehicle_logs_bp, url_prefix="/vehicle")
     app.register_blueprint(ai_bp)
+    app.register_blueprint(health_snapshots_bp)
+    app.register_blueprint(maintenance_records_bp)
 
     return app
