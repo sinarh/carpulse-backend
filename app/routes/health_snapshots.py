@@ -91,3 +91,26 @@ def list_health_snapshots(vehicle_id: int):
     )
 
     return jsonify([_health_snapshot_to_dict(snapshot) for snapshot in snapshots]), 200
+
+
+@health_snapshots_bp.delete("/vehicle/<int:vehicle_id>/health-snapshots/<int:snapshot_id>")
+@jwt_required()
+def delete_health_snapshot(vehicle_id: int, snapshot_id: int):
+    user_id = int(get_jwt_identity())
+    vehicle = _get_owned_vehicle(vehicle_id, user_id)
+
+    if not vehicle:
+        return jsonify({"error": "vehicle not found"}), 404
+
+    snapshot = HealthSnapshot.query.filter_by(
+        id=snapshot_id,
+        vehicle_id=vehicle.id,
+    ).first()
+
+    if not snapshot:
+        return jsonify({"error": "health snapshot not found"}), 404
+
+    db.session.delete(snapshot)
+    db.session.commit()
+
+    return jsonify({"message": "health snapshot deleted"}), 200

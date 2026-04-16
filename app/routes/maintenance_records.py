@@ -42,7 +42,7 @@ def create_maintenance_record(vehicle_id: int):
     vehicle = _get_owned_vehicle(vehicle_id, user_id)
 
     if not vehicle:
-        return jsonify({"error": "vehicle not found"}), 404
+      return jsonify({"error": "vehicle not found"}), 404
 
     data = request.get_json() or {}
 
@@ -100,3 +100,26 @@ def list_maintenance_records(vehicle_id: int):
     )
 
     return jsonify([_maintenance_record_to_dict(record) for record in records]), 200
+
+
+@maintenance_records_bp.delete("/vehicle/<int:vehicle_id>/maintenance-records/<int:record_id>")
+@jwt_required()
+def delete_maintenance_record(vehicle_id: int, record_id: int):
+    user_id = int(get_jwt_identity())
+    vehicle = _get_owned_vehicle(vehicle_id, user_id)
+
+    if not vehicle:
+        return jsonify({"error": "vehicle not found"}), 404
+
+    record = MaintenanceRecord.query.filter_by(
+        id=record_id,
+        vehicle_id=vehicle.id,
+    ).first()
+
+    if not record:
+        return jsonify({"error": "maintenance record not found"}), 404
+
+    db.session.delete(record)
+    db.session.commit()
+
+    return jsonify({"message": "maintenance record deleted"}), 200

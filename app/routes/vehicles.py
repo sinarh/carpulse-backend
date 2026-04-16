@@ -1,6 +1,8 @@
+from datetime import datetime
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime
+
 from ..extensions import db
 from ..models import Vehicle
 
@@ -26,6 +28,7 @@ def _vehicle_to_dict(vehicle: Vehicle):
 def _get_owned_vehicle(vehicle_id: int, user_id: int):
     return Vehicle.query.filter_by(id=vehicle_id, user_id=user_id).first()
 
+
 def _parse_date(value):
     if value in (None, ""):
         return None
@@ -33,6 +36,7 @@ def _parse_date(value):
         return datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError:
         return None
+
 
 @vehicles_bp.post("/")
 @jwt_required()
@@ -54,6 +58,11 @@ def create_vehicle():
     except (TypeError, ValueError):
         return jsonify({"error": "year and mileage must be numbers"}), 400
 
+    purchase_date_raw = data.get("purchase_date")
+    purchase_date = _parse_date(purchase_date_raw)
+    if purchase_date_raw not in (None, "") and purchase_date is None:
+        return jsonify({"error": "purchase_date must be YYYY-MM-DD"}), 400
+
     vehicle = Vehicle(
         user_id=user_id,
         make=str(make).strip(),
@@ -63,7 +72,7 @@ def create_vehicle():
         nickname=data.get("nickname"),
         fuel_type=data.get("fuel_type"),
         transmission=data.get("transmission"),
-        purchase_date=_parse_date(data.get("purchase_date")),
+        purchase_date=purchase_date,
         notes=data.get("notes"),
     )
 
@@ -127,11 +136,26 @@ def update_vehicle(vehicle_id: int):
         vehicle.transmission = data["transmission"]
     if "purchase_date" in data:
         parsed_date = _parse_date(data["purchase_date"])
-    if data["purchase_date"] not in (None, "") and parsed_date is None:
-        return jsonify({"error": "purchase_date must be YYYY-MM-DD"}), 400
-    vehicle.purchase_date = parsed_date
+        if data["purchase_date"] not in (None, "") and parsed_date is None:
+            return jsonify({"error": "purchase_date must be YYYY-MM-DD"}), 400
+        vehicle.purchase_date = parsed_date
     if "notes" in data:
         vehicle.notes = data["notes"]
 
     db.session.commit()
     return jsonify(_vehicle_to_dict(vehicle)), 200
+
+
+@vehicles_bp.delete("/<int:vehicle_id>")
+@jwt_required()
+def delete_vehicle(vehicle_id: int):
+    user_id = int(get_jwt_identity())
+    vehicle = _get_owned_vehicle(vehicle_id, user_id)
+
+    if not vehicle:
+        return jsonify({"error": "vehicle not found"}), 404
+
+    db.session.delete(vehicle)
+    db.session.commit()
+
+    return jsonify({"message": "vehicle deleted"}), 200
